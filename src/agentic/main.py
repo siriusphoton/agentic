@@ -10,6 +10,7 @@ from collections.abc import Callable
 from langgraph.types import Command
 import warnings
 warnings.filterwarnings("ignore",message=".*streaming protocol.*")
+from langgraph.stream import StreamTransformer, StreamChannel
 
 load_dotenv()
 
@@ -54,14 +55,133 @@ agent = create_agent(
     ]
 )
 
+class MyCustomTransformer(StreamTransformer):
+    required_stream_modes = ("custom",)
+
+    def __init__(self, scope: tuple[str, ...] = ()) -> None:
+        super().__init__(scope)
+        self.log = StreamChannel()
+
+    def init(self) -> dict:
+        return {"my_custom": self.log}
+
+    def process(self, event) -> bool:
+        if event["method"] == "custom":
+            self.log.push(event["params"]["data"])
+        return True
+
 config = {"configurable": {"thread_id": "test0"}}
-msg=input("Enter: ")
-while(msg):
-    res = agent.stream_events({"messages":[HumanMessage(msg)]},version='v3',config=config)
-    for message in res.messages:
-        for chunk in message.text:
-            print(chunk,end="",flush=True)
-    if res.interrupted:
-        print(res.interrupts[-1].value['action_requests'][-1]['description'])
-        print("\n")
-    msg=input("\nEnter: ")
+
+msg = input("Enter: ")
+
+while msg:
+    stream = agent.stream_events(
+        {"messages": [HumanMessage(msg)]},
+        config=config,
+        transformers=[MyCustomTransformer],
+        version="v3",
+    )
+    for name, item in stream.interleave("my_custom", "messages"):
+        if name == "my_custom":
+            print(f"Tool update: {item}")
+        elif name == "messages":
+            for j in item.text:
+                print(j,end="",flush=True)
+    print()
+    while stream.interrupted:
+        interrupt = stream.interrupts[-1].value
+
+        request = interrupt["action_requests"][-1]
+        review = interrupt["review_configs"][-1]
+
+        print("\nAction:")
+        print(request["description"])
+
+        print("\nAllowed decisions:")
+        for d in review["allowed_decisions"]:
+            print("-", d)
+
+        choice = input("\nYour choice: ").strip()
+
+        if choice == "approve":
+            decision = {
+                "type": "approve"
+            }
+
+        elif choice == "reject":
+            feedback = input("Reason (optional): ")
+            if feedback:
+                feedback = f"Unsuccessful. The user has rejected the tool call with the following Feedback:{feedback}. Try Again"
+
+            decision = {
+                "type": "reject",
+                "message": feedback
+            }
+
+        elif choice == "respond":
+            reply = input("Response to tool: ")
+            decision = {
+                "type": "respond",
+                "message": reply
+            }
+
+        elif choice == "edit":
+            print(f"\nTool: {request['name']}")
+
+            new_args = request["arguments"].copy()
+
+            print("\nEdit arguments (press Enter to keep the current value):\n")
+
+            for key, value in new_args.items():
+                new_value = input(f"{key} [{value}]: ").strip()
+
+                if new_value:
+                    # Convert to original type where possible
+                    try:
+                        if isinstance(value, bool):
+                            new_args[key] = new_value.lower() in (
+                                "true",
+                                "1",
+                                "yes",
+                                "y",
+                            )
+                        elif isinstance(value, int):
+                            new_args[key] = int(new_value)
+                        elif isinstance(value, float):
+                            new_args[key] = float(new_value)
+                        else:
+                            new_args[key] = new_value
+                    except ValueError:
+                        print(f"Invalid value for {key}. Keeping original.")
+
+                    decision = {
+                        "type": "edit",
+                        "edited_action": {
+                            "name": request["name"],
+                            "args": new_args,
+                        },
+                    }
+
+        else:
+            print("Invalid choice.")
+            continue
+
+        stream = agent.stream_events(
+            Command(
+                resume={
+                    "decisions": [decision]
+                }
+            ),
+            transformers=[MyCustomTransformer],
+            config=config,
+            version="v3",
+        )
+
+        for name, item in stream.interleave("my_custom", "messages"):
+            if name == "my_custom":
+                print(f"Tool update: {item}")
+            elif name == "messages":
+                for j in item.text:
+                    print(j,end="",flush=True)
+
+    msg = input("\nEnter: ")
