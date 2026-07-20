@@ -38,4 +38,24 @@ Quick notes tracking daily progress, changes, and learnings.
 - **Keep in mind for tomorrow (Optional)**: 
   - whenever got a chance explore stream_writer more
   - explore streaming possibilities more
+
+## 2026-07-20 - Day 6: Persistent Memory & Context Trimming
+
+- **Done**: 
+  - Implemented persistent short-term memory using `SqliteSaver`.
+  - Implemented persistent long-term memory replacing the in-memory dictionary with `SqliteStore`.
+  - Added a custom `before_model` middleware to trim old messages, limiting token usage and preventing context overflow.
+  - Updated `pyproject.toml` dependencies with `langgraph-checkpoint-sqlite`.
+  - Updated `.gitignore` to avoid committing SQLite database files (`checkpoint.db`, `store.db`).
+- **Explored / Tried**:
+  - Investigated custom State and Context usage in LangGraph (`notebooks/context.ipynb`).
+  - Experimented with the persistent SQLite checkpointer and store implementations within Jupyter notebooks.
+- **Learned / Notes**:
+  - Transitioning from in-memory to SQLite-based persistence in LangGraph is straightforward but requires managing connection threading (`check_same_thread=False`).
+  - State and Context serve different purposes in LangGraph; understanding when to update which is crucial for complex agent workflows.
+  - Unbounded message history quickly eats up context windows; implementing message trimming middleware before the model call is an effective safeguard.
+- **Keep in mind for tomorrow (Optional)**: 
+  - Explore and experiment more on Context, State, Store.
+  - Observe the CRUD on all three when revisiting these on Langgraph 
+
 ---
