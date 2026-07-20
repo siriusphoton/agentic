@@ -20,3 +20,6 @@ wheels/
 
 # Trackers
 docs-tracker2.jsx
+
+*checkpoint.db*
+*store.db*
