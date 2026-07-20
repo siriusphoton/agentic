@@ -2,7 +2,8 @@ from langchain.agents import create_agent
 from langchain.messages import HumanMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langchain.tools import tool
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
+import sqlite3
 from .tools import NOTEBOT_TOOLS
 from dotenv import load_dotenv
 from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware
@@ -33,11 +34,13 @@ model = ChatOllama(
     top_p=0.5
 )
 
+checkpointer = SqliteSaver(conn=sqlite3.connect("checkpoint.db",check_same_thread=False))
+
 agent = create_agent(
     model=model,
     system_prompt="You are a NoteBot",
     tools=NOTEBOT_TOOLS,
-    checkpointer=InMemorySaver(),
+    checkpointer=checkpointer,
     middleware=[
         HumanInTheLoopMiddleware(
             interrupt_on={
@@ -70,7 +73,7 @@ class MyCustomTransformer(StreamTransformer):
             self.log.push(event["params"]["data"])
         return True
 
-config = {"configurable": {"thread_id": "test0"}}
+config = {"configurable": {"thread_id": "t0"}}
 
 msg = input("Enter: ")
 
