@@ -7,9 +7,13 @@ from langgraph.store.sqlite import SqliteStore
 import sqlite3
 from .tools import NOTEBOT_TOOLS
 from dotenv import load_dotenv
-from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware
+from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware, before_model, AgentState
 from collections.abc import Callable
 from langgraph.types import Command
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
+from langchain_core.messages import RemoveMessage
+from langgraph.runtime import Runtime
+from typing import Any
 import warnings
 warnings.filterwarnings("ignore",message=".*streaming protocol.*")
 from langgraph.stream import StreamTransformer, StreamChannel
@@ -27,6 +31,23 @@ def log_tool(request: ToolCallRequest, handler: Callable[[ToolCallRequest], Tool
     except Exception as e:
         print(f"Tool failed: {e}")
         raise
+
+@before_model
+def log_and_trim_before_model(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+    messages=state['messages']
+    if len(messages)>30:
+        first_msg = messages[0]
+        recent_messages = messages[-29:]
+        new_messages = [first_msg] + recent_messages
+        print(f"About to call model with {len(new_messages)} messages")
+        return {
+            "messages" : [
+                RemoveMessage(id=REMOVE_ALL_MESSAGES),
+                *new_messages
+            ]
+        }
+    print(f"About to call model with {len(state['messages'])} messages")
+    return None
 
 model = ChatOllama(
     model="qwen3.5:4b-mlx",
@@ -57,7 +78,7 @@ agent = create_agent(
             max_retries=9,
             backoff_factor=1.1
         ),
-        log_tool,
+        log_tool,log_and_trim_before_model
     ],
     store=store
 )
@@ -77,7 +98,7 @@ class MyCustomTransformer(StreamTransformer):
             self.log.push(event["params"]["data"])
         return True
 
-config = {"configurable": {"thread_id": "t0"}}
+config = {"configurable": {"thread_id": "t1"}}
 
 msg = input("Enter: ")
 
