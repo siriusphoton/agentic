@@ -3,6 +3,7 @@ from langchain.messages import HumanMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langchain.tools import tool
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.store.sqlite import SqliteStore
 import sqlite3
 from .tools import NOTEBOT_TOOLS
 from dotenv import load_dotenv
@@ -34,7 +35,9 @@ model = ChatOllama(
     top_p=0.5
 )
 
-checkpointer = SqliteSaver(conn=sqlite3.connect("checkpoint.db",check_same_thread=False))
+checkpointer = SqliteSaver(conn=sqlite3.connect("db/checkpoint.db",check_same_thread=False))
+
+store = SqliteStore(conn=sqlite3.connect("db/store.db",autocommit=True,check_same_thread=False))
 
 agent = create_agent(
     model=model,
@@ -55,7 +58,8 @@ agent = create_agent(
             backoff_factor=1.1
         ),
         log_tool,
-    ]
+    ],
+    store=store
 )
 
 class MyCustomTransformer(StreamTransformer):
