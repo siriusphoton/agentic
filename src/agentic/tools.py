@@ -2,6 +2,10 @@ from langchain_core.tools import tool
 from langchain.tools import ToolRuntime
 from langgraph.config import get_stream_writer
 from .schemas import SaveNoteSchema, DeleteNoteSchema, SearchNotesSchema, SummarizeNotesSchema
+from langchain.agents import create_agent
+from langchain_ollama import ChatOllama
+from pydantic import BaseModel, Field
+from langchain.messages import HumanMessage
 
 _NAMESPACE = ("notes",)
 
@@ -69,8 +73,14 @@ def search_notes(query: str, runtime: ToolRuntime) -> str:
     return f"Found {len(matches)} matching note(s):\n\n{formatted_results}"
 
 @tool(args_schema=SummarizeNotesSchema)
-def summarize_notes(topic: str, runtime: ToolRuntime) -> str:
-    """Retrieves all notes related to a topic and instructs the system to summarize them."""
+def summarize_notes(topic: str, runtime: ToolRuntime) -> dict:
+    """Always use this to summarize notes. Retrieves all notes related to a topic and instructs the system to summarize them. Once this returns return its output exactly the same"""
+
+    class NoteSummary(BaseModel):
+        topic :str = Field(description="Topic name of the whole summary in 2-3 words")
+        key_points :list[str] = Field(description="Key points in sentences in a List")
+        overall_summary :str = Field(description="Whole topic summarized in a few paragraphs")
+        
     writer = runtime.stream_writer
 
     matches = _search(runtime.store, topic)
@@ -81,13 +91,26 @@ def summarize_notes(topic: str, runtime: ToolRuntime) -> str:
 
     writer(f"Found {len(matches)} to summarize")
     raw_data = "\n---\n".join(matches)
+    
+    prompt = f"Please read this and provide a structured summary:\n\n{raw_data}"
 
-    # We don't summarize it here in Python. We return the raw data wrapped in an
-    # instruction to the LLM. The LLM will read this output and generate the summary.
-    return (
-        f"Here is all the raw data found for the topic '{topic}'. "
-        f"Please read this and provide a structured, concise summary for the user:\n\n{raw_data}"
+    model = ChatOllama(
+        model="gemma4:e2b-mlx",
+        reasoning=False,
+        temperature=0.0,
+        top_p=0.5
     )
+    
+    agent = create_agent(
+        model=model,
+        response_format=NoteSummary,
+        system_prompt="You are summaring bot. You will be given a few notes and asked to summarize. Always complex English while summarizing"
+    )
+
+    res = agent.invoke({"messages":[HumanMessage(prompt)]})
+
+    return dict(res["structured_response"])
+
 
 # Export list of tools for the agent
 NOTEBOT_TOOLS = [save_note, delete_note, search_notes, summarize_notes]
