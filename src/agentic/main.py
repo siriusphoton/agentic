@@ -1,5 +1,5 @@
 from langchain.agents import create_agent
-from langchain.messages import HumanMessage, ToolMessage
+from langchain.messages import HumanMessage, ToolMessage, AIMessage
 from langchain_ollama import ChatOllama
 from langchain.tools import tool
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -17,6 +17,8 @@ from typing import Any
 import warnings
 warnings.filterwarnings("ignore",message=".*streaming protocol.*")
 from langgraph.stream import StreamTransformer, StreamChannel
+from langchain.agents.middleware import PIIMiddleware
+from langchain.agents.middleware import before_agent
 
 load_dotenv()
 
@@ -49,6 +51,45 @@ def log_and_trim_before_model(state: AgentState, runtime: Runtime) -> dict[str, 
     print(f"About to call model with {len(state['messages'])} messages")
     return None
 
+@before_agent
+def block_profanity(state: AgentState,runtime: Runtime):
+    """Deterministic guardrail: Block requests containing banned keywords."""
+    
+    if not state["messages"]:
+        return None
+
+    recent_message = state["messages"][-1]
+    if recent_message.type != "human":
+        return None
+
+    content = recent_message.content.lower()
+
+    banned_keywords = [
+    "hack", "h4ck", "exploit", "payload", "backdoor", "rootkit", 
+    "shellcode", "reverse shell", "buffer overflow", "integer overflow",
+    "zero-day", "zeroday", "0day", "privilege escalation", "privesc",
+    "sql injection", "sqli", "xss", "csrf", "ssrf", "rce", "ddos",
+    "malware", "ransomware", "trojan", "keylogger", "spyware", 
+    "wiper", "botnet", "dropper", "exfiltration", "exfiltrate",
+    "phishing", "credential stuffing", "brute force",
+    "metasploit", "mimikatz", "cobalt strike", "exploit-db", 
+    "sqlmap", "burp suite", "aircrack", "hydra",
+    "jailbreak", "DAN", "override prompt", "ignore previous instructions",
+    "bypass safety", "developer mode", "unrestricted mode"
+    ]
+
+    for keyword in banned_keywords:
+        if keyword in content:
+
+            return {
+                "messages": [
+                    AIMessage("I cannot process requests containing inappropriate content. Please rephrase your request.")
+                ],
+                "jump_to": "end"
+            }
+
+    return None
+
 model = ChatOllama(
     model="qwen3.5:4b-mlx",
     reasoning=False,
@@ -78,7 +119,13 @@ agent = create_agent(
             max_retries=9,
             backoff_factor=1.1
         ),
-        log_tool,log_and_trim_before_model
+        PIIMiddleware(
+            "email",
+            strategy="redact",
+        ),
+        log_tool,
+        log_and_trim_before_model,
+        block_profanity,
     ],
     store=store
 )
