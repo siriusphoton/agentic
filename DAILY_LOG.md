@@ -59,3 +59,19 @@ Quick notes tracking daily progress, changes, and learnings.
   - Observe the CRUD on all three when revisiting these on Langgraph 
 
 ---
+
+## 2026-07-21 - Day 7: Structured Tool Output & Input Guardrails
+
+- **Done**: 
+  - Enhanced `summarize_notes` tool to use an internal LLM agent with a Pydantic `NoteSummary` schema to generate structured summaries (`topic`, `key_points`, `overall_summary`).
+  - Added `block_profanity` `@before_agent` middleware as a deterministic guardrail blocking banned keywords, jailbreak attempts, and prompt injection attacks with `jump_to="end"`.
+  - Integrated `PIIMiddleware` to redact email addresses from incoming inputs.
+  - Created `notebooks/structured_output.ipynb` to experiment with structured LLM responses.
+- **Explored / Tried**:
+  - Sub-agent creation inside custom tool calls to enforce structured data schemas.
+  - Input sanitization and middleware routing in LangGraph (`PIIMiddleware` and `@before_agent` guardrails).
+- **Learned / Notes**:
+  - Running a sub-agent within a tool function allows returning typed structured dicts to the main agent instead of unstructured plain text.
+  - `@before_agent` middleware can intercept human messages and short-circuit execution via `jump_to="end"`, providing lightweight prompt safety without LLM overhead.
+
+---
