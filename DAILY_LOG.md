@@ -74,4 +74,20 @@ Quick notes tracking daily progress, changes, and learnings.
   - Running a sub-agent within a tool function allows returning typed structured dicts to the main agent instead of unstructured plain text.
   - `@before_agent` middleware can intercept human messages and short-circuit execution via `jump_to="end"`, providing lightweight prompt safety without LLM overhead.
 
+
+## 2026-07-23 - Day 8: Agentic RAG over LangChain Docs
+
+- **Done**: 
+  - Built a document ingestion script (`src/RAG/index.py`) to scrape LangChain documentation, split text with `RecursiveCharacterTextSplitter`, and generate embeddings using `OllamaEmbeddings` (`qwen3-embedding:0.6b`).
+  - Stored the generated vectors in a local Qdrant database (`QdrantVectorStore`).
+  - Created a RAG-enabled agent (`src/RAG/agent.py`) equipped with a `search_langchain_docs` tool, allowing it to autonomously search and retrieve relevant documentation.
+  - Added `notebooks/rag.ipynb` to experiment with the retrieval pipeline.
+- **Explored / Tried**:
+  - Iterative retrieval: The agent evaluates search results and can recursively call the search tool (up to 3 times) with refined queries if the initial context is insufficient.
+  - Local, offline vector storage with Qdrant client (`/tmp/langchain_qdrant`).
+- **Learned / Notes**:
+  - Agentic RAG drastically improves answer quality over standard single-pass RAG because the LLM can dynamically course-correct and fetch missing context.
+  - Ollama embeddings combined with local Qdrant provide a fast, private, and lightweight stack for building RAG applications.
+  - Chunking is where the machine make or break
+
 ---
