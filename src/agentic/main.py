@@ -7,7 +7,7 @@ from langgraph.store.sqlite import SqliteStore
 import sqlite3
 from .tools import NOTEBOT_TOOLS
 from dotenv import load_dotenv
-from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware, before_model, AgentState
+from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware, before_model, AgentState, wrap_model_call, ModelRequest, ModelResponse
 from collections.abc import Callable
 from langgraph.types import Command
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
@@ -90,6 +90,23 @@ def block_profanity(state: AgentState,runtime: Runtime):
 
     return None
 
+@wrap_model_call
+def summarize_tool_filter(
+    request: ModelRequest,
+    handler: Callable[[ModelRequest], ModelResponse]
+) -> ModelResponse:
+    """Filter tools based on conversation State."""
+    state = request.state
+    messages = state.get("messages", [])
+    
+    if messages:
+        last_message = messages[-1]
+        if last_message.type == "human" and "summarize" in last_message.content.lower():
+            tools = [t for t in request.tools if t.name == "summarize_notes"]
+            request = request.override(tools=tools)
+
+    return handler(request)
+
 model = ChatOllama(
     model="qwen3.5:4b-mlx",
     reasoning=False,
@@ -126,6 +143,7 @@ agent = create_agent(
         log_tool,
         log_and_trim_before_model,
         block_profanity,
+        summarize_tool_filter,
     ],
     store=store
 )
