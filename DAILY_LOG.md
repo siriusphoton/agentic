@@ -91,3 +91,17 @@ Quick notes tracking daily progress, changes, and learnings.
   - Chunking is where the machine make or break
 
 ---
+
+## 2026-07-24 - Day 9: Context Engineering & Dynamic Tool Filtering
+
+- **Done**: 
+  - Integrated `summarize_tool_filter` middleware in `src/agentic/main.py` using `@wrap_model_call` to dynamically control the tools provided to the LLM.
+  - Restricted the agent to only access the `summarize_notes` tool when the word "summarize" is detected in the human's message, preventing unwanted tool executions.
+  - Updated `notebooks/try.ipynb` to test and refine this dynamic context engineering setup.
+- **Explored / Tried**:
+  - Context engineering by manipulating the `ModelRequest` right before it hits the model, specifically overriding the `tools` list based on the current conversation `State`.
+- **Learned / Notes**:
+  - Dynamically filtering tools based on user intent is an effective way to reduce model confusion, improve accuracy, and prevent the model from picking the wrong tools.
+  - `@wrap_model_call` provides a clean and powerful interface to inspect the runtime state and intercept or modify model inputs like systemprompt, mmodel, available tools etc., seamlessly.
+
+---
