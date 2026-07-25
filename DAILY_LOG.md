@@ -103,5 +103,19 @@ Quick notes tracking daily progress, changes, and learnings.
 - **Learned / Notes**:
   - Dynamically filtering tools based on user intent is an effective way to reduce model confusion, improve accuracy, and prevent the model from picking the wrong tools.
   - `@wrap_model_call` provides a clean and powerful interface to inspect the runtime state and intercept or modify model inputs like systemprompt, mmodel, available tools etc., seamlessly.
-
 ---
+
+## 2026-07-25 - Day 10: Multi Agent Architectures
+
+- **Explored**:
+  Multi agent architectures: 
+  1. Subagents as tools 
+  2. Handoffs using context engineering 
+  3. Skills available through tool calls
+  4. Router powered by non agentic llm.
+- **Learned / Notes**:
+  - Stateful patterns like Handoffs and Skills reduce model calls by up to 50% on repeated requests by keeping context active, whereas stateless patterns re-run full routing pipelines every turn.
+  - Isolated architectures like Subagents and Routers are superior for multi-domain workflows because parallelizing context saves massive token overhead compared to cumulative skill loading.
+  - Multi-agent system design is fundamentally a context engineering trade-off between latency (number of LLM calls) and token consumption (context window bloat).
+- **Keep in mind for tomorrow (Optional)**: 
+  - Explore more context flow between agents with handoff architecture on Langgraph 
