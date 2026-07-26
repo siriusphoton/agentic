@@ -119,3 +119,25 @@ Quick notes tracking daily progress, changes, and learnings.
   - Multi-agent system design is fundamentally a context engineering trade-off between latency (number of LLM calls) and token consumption (context window bloat).
 - **Keep in mind for tomorrow (Optional)**: 
   - Explore more context flow between agents with handoff architecture on Langgraph 
+
+---
+
+## 2026-07-26 - Day 11: Subagents as Tools, Connection Safety & Initialization Order
+
+- **Done**: 
+  - Restructured the RAG agent (`src/RAG/agent.py`) into a dedicated `search_agent` with a `ToolCallLimitMiddleware` (max 5 calls) to prevent infinite retrieval loops.
+  - Wrapped the `search_agent` inside a tool named `langchain_search_agent` to serve as an autonomous subagent.
+  - Integrated the `langchain_search_agent` tool into the main agent (`src/agentic/main.py`), delegating LangChain research to a specialized subagent.
+  - Refactored `src/agentic/main.py` to move `dotenv.load_dotenv()` to the absolute top of the file before any other imports.
+  - Refactored `src/RAG/agent.py` to confine the Qdrant database connection and vector search inside a strict `try...finally: client.close()` block scoped specifically to the tool execution, removing the global client instantiation.
+  - Created `notebooks/mutiagents.ipynb` to validate the multi-agent architecture.
+- **Explored / Tried**:
+  - Subagents as tools: Delegating tasks to a separate agent running in an isolated context bubble.
+  - Dependency initialization ordering and safe resource teardown for database connections inside LLM tool invocations.
+- **Learned / Notes**:
+  - **Initialization Order matters**: Moving `load_dotenv()` to the top of `main.py` ensures environment variables (like API keys) are injected into the system *before* downstream modules (like LangChain or LLM wrappers) eagerly attempt to load them on import, preventing subtle startup crashes.
+  - **Resource Lifecycle inside Tools**: Moving the Qdrant DB connection off the global scope and confining it entirely within the `search_langchain_docs` tool call under a `try...finally` block is critical. It prevents connection leaks and file-lock issues across threads/invocations, ensuring the database is only accessed when needed and safely closed immediately after, even if the similarity search crashes.
+  - Wrapping an agent as a tool is a highly scalable multi-agent design. It protects the main agent's context window from bloating, as the subagent manages its own internal reasoning.
+  - Middleware like `ToolCallLimitMiddleware` guarantees autonomous subagents don't get stuck endlessly retrying failed tool calls and hanging the parent process.
+
+---
