@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from langchain.agents import create_agent
 from langchain.messages import HumanMessage, ToolMessage, AIMessage
 from langchain_ollama import ChatOllama
@@ -6,7 +10,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.store.sqlite import SqliteStore
 import sqlite3
 from .tools import NOTEBOT_TOOLS
-from dotenv import load_dotenv
+from RAG.agent import langchain_search_agent
 from langchain.agents.middleware import HumanInTheLoopMiddleware, wrap_tool_call, ToolCallRequest, ToolRetryMiddleware, before_model, AgentState, wrap_model_call, ModelRequest, ModelResponse
 from collections.abc import Callable
 from langgraph.types import Command
@@ -19,8 +23,6 @@ warnings.filterwarnings("ignore",message=".*streaming protocol.*")
 from langgraph.stream import StreamTransformer, StreamChannel
 from langchain.agents.middleware import PIIMiddleware
 from langchain.agents.middleware import before_agent
-
-load_dotenv()
 
 @wrap_tool_call
 def log_tool(request: ToolCallRequest, handler: Callable[[ToolCallRequest], ToolMessage | Command],) -> ToolMessage | Command:
@@ -121,7 +123,7 @@ store = SqliteStore(conn=sqlite3.connect("db/store.db",autocommit=True,check_sam
 agent = create_agent(
     model=model,
     system_prompt="You are a NoteBot",
-    tools=NOTEBOT_TOOLS,
+    tools=[*NOTEBOT_TOOLS, langchain_search_agent],
     checkpointer=checkpointer,
     middleware=[
         HumanInTheLoopMiddleware(
