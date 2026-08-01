@@ -37,11 +37,19 @@ Source: {doc.metadata.get("source", "unknown")}
     return "\n\n---\n\n".join(formatted)
 
 
+import os
 import sqlite3
+from pathlib import Path
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
-checkpointer = SqliteSaver(conn=sqlite3.connect("db/checkpoint.db", check_same_thread=False))
+# Standard production practice: Read from environment, fallback to a sensible local default
+DB_PATH = os.getenv(
+    "CHECKPOINT_DB_PATH", 
+    Path(__file__).parent.parent.parent / "db" / "checkpoint.db"
+)
+
+checkpointer = SqliteSaver(conn=sqlite3.connect(DB_PATH, check_same_thread=False))
 
 model = ChatOllama(
     model="qwen3.5:4b-mlx",
