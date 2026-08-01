@@ -141,3 +141,39 @@ Quick notes tracking daily progress, changes, and learnings.
   - Middleware like `ToolCallLimitMiddleware` guarantees autonomous subagents don't get stuck endlessly retrying failed tool calls and hanging the parent process.
 
 ---
+
+## 2026-07-28 - Day 12: LangGraph Core Concepts & Custom Workflows
+
+- **Done**: 
+  - Added `langgraph>=1.2.6` dependency to `pyproject.toml` and updated lockfile (`uv.lock`).
+  - Created `notebooks/05_langgraph_a.ipynb` to build and test custom `StateGraph` workflows.
+  - Implemented a multi-step joke refinement pipeline using custom nodes (`generate_joke`, `improve_joke`, `polish_joke`) and conditional edges (`check_punchline`).
+  - Integrated `InMemorySaver` for local workflow state checkpointing and visualized the graph with Mermaid PNG rendering.
+- **Explored / Tried**:
+  - Typed state dictionaries (`TypedDict`) for managing custom state fields across node transitions.
+  - Conditional branching logic based on runtime state values (e.g. punchline validation).
+- **Learned / Notes**:
+  - `StateGraph` provides low-level control to seamlessly combine deterministic hand-coded checks with LLM calls in a single execution graph.
+  - Using `InMemorySaver` allows inspecting thread state across steps during graph execution.
+
+---
+
+## 2026-08-01 - Day 13: Notebook Reorganization, RAG Agent Loop & Configurable DB Paths
+
+- **Done**: 
+  - Reorganized and standardized notebook naming conventions across the repository:
+    - `01_structured_output.ipynb`
+    - `02_context_and_state.ipynb`
+    - `03_agentic_rag.ipynb`
+    - `04_multi_agents.ipynb`
+    - `99_playground.ipynb` (renamed from `try.ipynb`)
+  - Created `notebooks/06_langgraph_b.ipynb` to construct a custom RAG agent loop using `StateGraph`, `ToolNode`, and `tools_condition` from `langgraph.prebuilt`.
+  - Bound `search_langchain_docs` from `src/RAG/agent.py` to `ChatOllama(model="qwen3.5:4b-mlx")` to answer technical queries directly from vector storage.
+  - Created `notebooks/07_langgraph_graphapi.ipynb` for upcoming Graph API experiments.
+  - Updated `src/RAG/agent.py` checkpointer initialization to support `CHECKPOINT_DB_PATH` environment variable with dynamic fallback to `db/checkpoint.db`.
+- **Explored / Tried**:
+  - Interfacing custom vector store tools (`QdrantVectorStore` + `OllamaEmbeddings`) inside `langgraph.prebuilt.ToolNode`.
+  - Dynamic checkpointer path resolution using `Path(__file__)` to ensure cross-environment database connection reliability.
+- **Learned / Notes**:
+  - `ToolNode` combined with `tools_condition` simplifies building standard agent loops while preserving full graph customization capabilities.
+  - Reading database file paths from environment variables (`CHECKPOINT_DB_PATH`) prevents pathing collisions when deploying across different environments or containers.
